@@ -2,8 +2,10 @@ import os
 import pandas as pd
 import numpy as np
 import csv
+import tensorflow as tf
 
 from const import mbti_p_typs
+from preprocessing import mbti_to_int
 
 def apply_mbti_constraint(row : pd.Series):
     for t in mbti_p_typs:
@@ -43,3 +45,22 @@ def read_data(fp : str, filtered_fp : str):
                             nrows=2**14)
 
     return df
+
+def get_datasets():
+    BATCH_SIZE = 64
+    BUF_SIZE   = 128
+
+    df = read_data("mbti_full_pull.csv", "mbti_filtered.csv")
+    x = df["body"].tolist()
+    df["author_flair_text_i"] = df.apply(mbti_to_int, axis=1)
+    y = df["author_flair_text_i"].tolist()
+
+    train_ds = tf.data.Dataset.from_tensor_slices((x, y))
+    train_ds = train_ds.shuffle(buffer_size=BUF_SIZE).batch(BATCH_SIZE)
+    train_ds = train_ds.cache().prefetch(buffer_size=BUF_SIZE)
+
+    val_ds = None
+    
+    print(df.head(5))
+    print(f'Available flairs: {df["author_flair_text"].unique()}')
+    return train_ds, val_ds
