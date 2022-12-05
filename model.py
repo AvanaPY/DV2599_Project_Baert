@@ -2,7 +2,7 @@ import tensorflow as tf
 import tensorflow_hub as hub
 import tensorflow_text as text
 from official.nlp import optimization
-print(tf.__version__)
+import datetime
 
 import matplotlib.pyplot as plt
 
@@ -21,13 +21,11 @@ def get_modle(output_size:int=16):
     outputs = encoder(enc_inp)
 
     net = outputs["pooled_output"]
-    net = tf.keras.layers.Dropout(0.2)(net)
     net = tf.keras.layers.Dense(4096, activation='relu', name="l1")(net)
-    net = tf.keras.layers.Dropout(0.2)(net)
     net = tf.keras.layers.Dense(4096, activation='relu', name="l2")(net)
-    net = tf.keras.layers.Dropout(0.2)(net)
     net = tf.keras.layers.Dense(4096, activation='relu', name="l3")(net)
-    net = tf.keras.layers.Dropout(0.2)(net)
+    net = tf.keras.layers.Dense(4096, activation='relu', name="l4")(net)
+    net = tf.keras.layers.Dense(4096, activation='relu', name="l5")(net)
     net = tf.keras.layers.Dense(output_size, activation='softmax', name="Baert")(net)
     baert : tf.keras.Model = tf.keras.Model(inp, net), preprocessor, encoder
     return baert
@@ -50,7 +48,10 @@ def get_preprocessing_modle():
     _PREPROCESSOR = bert_preprocess_model
     return bert_preprocess_model
 
-def train_model(train_ds, baert : tf.keras.Model, epochs : int = 5):
+def train_model(train_ds : tf.data.Dataset, 
+                val_ds   : tf.data.Dataset, 
+                baert : tf.keras.Model, 
+                epochs : int = 5):
     init_lr = 3e-5
     steps_per_epoch = tf.data.experimental.cardinality(train_ds).numpy()
     num_train_steps = steps_per_epoch * epochs
@@ -61,10 +62,26 @@ def train_model(train_ds, baert : tf.keras.Model, epochs : int = 5):
                                                 num_warmup_steps=num_warmup_steps,
                                                 optimizer_type='adamw')
     loss        = tf.keras.losses.CategoricalCrossentropy()
-    metrics     = tf.keras.metrics.CategoricalAccuracy()
+    metrics     = [
+        tf.keras.metrics.CategoricalAccuracy()
+    ]
 
     baert.compile(optimizer=optimizer,
                   loss=loss,
                   metrics=metrics)
 
-    baert.fit(train_ds, epochs=epochs)
+    m_name = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    log_dir = "logs/" + m_name
+    chkp_dir = "chkp/" + m_name
+    callbacks = [
+        tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=0),
+        tf.keras.callbacks.ModelCheckpoint(chkp_dir, 
+                                            monitor = "val_loss",
+                                            save_weights_only=True,
+                                            save_freq='epoch')
+    ]
+
+    baert.fit(train_ds, 
+            epochs=epochs, 
+            validation_data=val_ds,
+            callbacks=callbacks)
