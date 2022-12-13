@@ -2,6 +2,7 @@ import tensorflow as tf
 import tensorflow_hub as hub
 import tensorflow_text as text
 from official.nlp import optimization
+from const import MBTI_CLASSES
 import datetime
 
 import matplotlib.pyplot as plt
@@ -11,7 +12,7 @@ tf.get_logger().setLevel('ERROR')
 _MODEL = None
 _PREPROCESSOR = None
 
-def get_modle(output_size:int=16):
+def get_modle(output_size:int=MBTI_CLASSES):
     preprocessor = get_preprocessing_modle()
     encoder = get_encoder()
 
@@ -20,15 +21,15 @@ def get_modle(output_size:int=16):
     enc_inp = preprocessor(inp)
     outputs = encoder(enc_inp)
 
+    # Apply very many Dense layers
     net = outputs["pooled_output"]
-    net = tf.keras.layers.Dense(4096, activation='relu', name="l1")(net)
-    net = tf.keras.layers.Dense(4096, activation='relu', name="l2")(net)
+    net = tf.keras.layers.Dense(256, activation='relu', name="l1")(net)
+    net = tf.keras.layers.Dense(1024, activation='relu', name="l2")(net)
     net = tf.keras.layers.Dense(4096, activation='relu', name="l3")(net)
-    net = tf.keras.layers.Dense(4096, activation='relu', name="l4")(net)
-    net = tf.keras.layers.Dense(4096, activation='relu', name="l5")(net)
-    net = tf.keras.layers.Dense(output_size, activation='softmax', name="Baert")(net)
-    baert : tf.keras.Model = tf.keras.Model(inp, net), preprocessor, encoder
-    return baert
+    net = tf.keras.layers.Dense(1024, activation='relu', name="l4")(net)
+    net = tf.keras.layers.Dense(output_size, activation='softmax', name="output")(net)
+    baert : tf.keras.Model = tf.keras.Model(inp, net, name="Baert")
+    return baert, preprocessor, encoder
 
 def get_encoder():
     global _MODEL
@@ -48,29 +49,42 @@ def get_preprocessing_modle():
     _PREPROCESSOR = bert_preprocess_model
     return bert_preprocess_model
 
-def train_model(train_ds : tf.data.Dataset, 
-                val_ds   : tf.data.Dataset, 
-                baert : tf.keras.Model, 
-                epochs : int = 5):
-    init_lr = 3e-5
-    steps_per_epoch = tf.data.experimental.cardinality(train_ds).numpy()
-    num_train_steps = steps_per_epoch * epochs
-    num_warmup_steps = int(0.1*num_train_steps)
+def get_loss():
+    return tf.keras.losses.SparseCategoricalCrossentropy()
 
-    optimizer   = optimization.create_optimizer(init_lr=init_lr,
-                                                num_train_steps=num_train_steps,
-                                                num_warmup_steps=num_warmup_steps,
-                                                optimizer_type='adamw')
-    loss        = tf.keras.losses.CategoricalCrossentropy()
-    metrics     = [
-        tf.keras.metrics.CategoricalAccuracy()
+def get_optimizer(init_lr : float, num_train_steps : int, num_warmup_steps):
+    return optimization.create_optimizer(init_lr=init_lr,
+                                        num_train_steps=num_train_steps,
+                                        num_warmup_steps=num_warmup_steps,
+                                        optimizer_type='adamw')
+def get_metrics():
+    return [                                                                   
+        tf.keras.metrics.SparseCategoricalAccuracy()
     ]
+
+def load_model(model_path : str):
+    model = tf.keras.models.load_model(model_path, compile=False)
+    return model
+
+def save_model(model : tf.keras.Model, model_path : str):
+    model.save(model_path)
+
+def compile_model(baert : tf.keras.Model, init_lr : float, num_train_steps : int, num_warmup_steps):
+
+    optimizer   = get_optimizer(init_lr, num_train_steps, num_warmup_steps)
+    loss        = get_loss()
+    metrics     = get_metrics()
 
     baert.compile(optimizer=optimizer,
                   loss=loss,
                   metrics=metrics)
 
-    m_name = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+def train_model(train_ds : tf.data.Dataset, 
+                val_ds   : tf.data.Dataset, 
+                baert    : tf.keras.Model,
+                epochs   : int,
+                m_name   : str):
+
     log_dir = "logs/" + m_name
     chkp_dir = "chkp/" + m_name
     callbacks = [
@@ -78,7 +92,14 @@ def train_model(train_ds : tf.data.Dataset,
         tf.keras.callbacks.ModelCheckpoint(chkp_dir, 
                                             monitor = "val_loss",
                                             save_weights_only=True,
-                                            save_freq='epoch')
+                                            save_freq='epoch'),
+        tf.keras.callbacks.EarlyStopping(
+            monitor='val_loss',
+            min_delta=0,
+            patience=10,
+            mode='auto',
+            restore_best_weights=True
+        )
     ]
 
     baert.fit(train_ds, 
