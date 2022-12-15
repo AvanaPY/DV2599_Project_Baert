@@ -34,7 +34,7 @@ if __name__ == '__main__':
                                         "mbti_filtered.csv",
                                         batch_size=8,
                                         shuffle_b_size=2**10,
-                                        nrows=2**12,
+                                        nrows=2**9,
                                         validation_split=0.2)
         
         # Create a model
@@ -42,7 +42,7 @@ if __name__ == '__main__':
         baert, p_modle, modle = get_modle()
 
         # Compile the model against the hyper paramters
-        epochs = 1000
+        epochs = 10
         init_lr = 3e-5
         steps_per_epoch = tf.data.experimental.cardinality(train_ds).numpy()
         num_train_steps = steps_per_epoch * epochs
@@ -55,6 +55,6 @@ if __name__ == '__main__':
         train_model(train_ds, val_ds, baert, epochs=epochs, m_name=m_name)
 
         # Save the model to a file
-        model_name = "beart_" + m_name
+        model_name = "baert_" + m_name
         model_path = os.path.join("models", model_name)
         save_model(baert, model_path)
