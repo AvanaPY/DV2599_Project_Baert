@@ -27,7 +27,7 @@ else:
     print('GPU acceleration unavailable, exiting')
     exit(0)
 
-def create_and_train():
+if __name__ == '__main__':
     with tf.device('/gpu:0'):
         # Load the data
         train_ds, val_ds = get_datasets("mbti_full_pull.csv",
@@ -58,46 +58,3 @@ def create_and_train():
         model_name = "beart_" + m_name
         model_path = os.path.join("models", model_name)
         save_model(baert, model_path)
-
-def evaluate():
-    baert = load_model(os.path.join('models', 'beart_2022_12_13__17_39_47'))
-
-    train_ds, _ = get_datasets("mbti_full_pull.csv",
-                                "mbti_filtered.csv",
-                                batch_size=32,
-                                shuffle_b_size=2**10,
-                                nrows=2**12,
-                                validation_split=0,
-                                limit_row_count=False)
-
-    epochs = 1000
-    init_lr = 3e-5
-    steps_per_epoch = tf.data.experimental.cardinality(train_ds).numpy()
-    num_train_steps = steps_per_epoch * epochs
-    num_warmup_steps = int(0.1*num_train_steps)
-
-    compile_model(baert, init_lr, num_train_steps, num_warmup_steps)
-    baert.summary()
-
-    loss, acc = baert.evaluate(train_ds)
-    print(f'Accuracy: {acc:.3f}\nLoss:     {loss:.3f}\n')
-
-    sntz = [
-        "I like cheese.", 
-        "I don't like INTP people.", 
-        "I really fucking dislike INTJ",
-        "Suck my cock.",
-        "ESTP people are kind of cringe, not gonna lie.",
-        "You should :) it will help you if you just don't suck at video games."
-    ]
-    t = baert.predict(sntz)
-    classes = np.argmax(t, axis=1)
-    for i, (snt, c) in enumerate(zip(sntz, classes)):
-        print(f'{mbti_idx2typ[c]} ({c:2d}, {t[i][c]:.5f}) <-- {snt}')
-
-def train():
-    create_and_train()
-
-if __name__ == '__main__':
-    evaluate()
-    # train()
