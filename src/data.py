@@ -3,10 +3,10 @@ import pandas as pd
 import numpy as np
 import csv
 import tensorflow as tf
-from model import BaertModel
+from .model import BaertModel
 
-from const import mbti_p_typs, MBTI_CLASSES
-from preprocessing import mbti_to_int
+from .const import mbti_p_typs, MBTI_CLASSES
+from .preprocessing import mbti_to_int
 
 MAX_ROWS_PER_COUNT = 3000
 

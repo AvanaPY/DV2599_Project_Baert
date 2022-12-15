@@ -1,13 +1,16 @@
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
-
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
+import src.tf_versions
+import tensorflow as tf
 import pandas as pd
 import numpy as np
 import datetime
 import argparse
-from model import get_encoder, get_preprocessing_modle
 
-from const import mbti_idx2typ, mbti_typ2idx, mbti_p_typs
+from src.data import read_data, get_datasets
+from src.model import get_modle, train_model, load_model, save_model, compile_model, get_encoder, get_preprocessing_modle
+from src.const import mbti_idx2typ, mbti_typ2idx, mbti_p_typs
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
                 prog = 'run_sentence.py',
@@ -26,11 +29,6 @@ if __name__ == '__main__':
                                         help="The sentence at which to run the model against.")
     args = parser.parse_args()
 
-    import tensorflow as tf
-    from data import read_data, get_datasets
-    from model import get_modle, train_model, load_model, save_model, compile_model
-    print(f'Running Tensorflow version {tf.__version__}')
-
     baert_path = os.path.join('models', args.model)
     if not os.path.exists(baert_path):
         raise RuntimeError(f'Model \"{baert_path}\" does not exist.')
@@ -48,3 +46,6 @@ if __name__ == '__main__':
 
     if args.real_flag:
         print(f'  Real flag: {args.real_flag} ({results[0][mbti_typ2idx[args.real_flag]]:.3f})')
+
+        print('\t  ' + '\t '.join(mbti_p_typs))
+        print('\t' + '\t'.join([f'{i:.4f}' for i in results[0]]))

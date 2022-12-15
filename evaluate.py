@@ -1,12 +1,11 @@
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+import src.tf_versions
 import pandas as pd
 import numpy as np
 import tensorflow as tf
 import datetime
-from const import mbti_idx2typ
-from data import read_data, get_datasets
-from model import get_modle, train_model, load_model, save_model, compile_model
+from src.const import mbti_idx2typ
+from src.data import read_data, get_datasets
+from src.model import get_modle, train_model, load_model, save_model, compile_model
 
 print(f'Running Tensorflow version {tf.__version__}')
 

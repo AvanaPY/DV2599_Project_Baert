@@ -7,7 +7,7 @@ import numpy as np
 import datetime
 import json
 from official.nlp import optimization
-from const import MBTI_CLASSES
+from .const import MBTI_CLASSES
 
 tf.get_logger().setLevel('ERROR')
 
@@ -86,8 +86,8 @@ def train_model(train_ds : tf.data.Dataset,
                 epochs   : int,
                 m_name   : str):
 
-    log_dir = "logs/" + m_name
-    chkp_dir = "chkp/" + m_name
+    log_dir = "skip/logs/" + m_name
+    chkp_dir = "skip/chkp/" + m_name
     callbacks = [
         tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=0),
         tf.keras.callbacks.ModelCheckpoint(chkp_dir, 
@@ -205,18 +205,15 @@ class RandomBaert(BaertModel):
         # Apply the bert pre processor on the data in chunks
         print(f'Applying BERT to {len(x)} instances of data:')
 
-        x_tmp = None
-        BERT_MAX_ROWS = 1024
+        x_tmp = []
+        BERT_MAX_ROWS = 256
         for i in range(0, len(x), BERT_MAX_ROWS):
             print(f'    BERTing {i:5d} to {min(len(x), i + BERT_MAX_ROWS):5d}...')
             _x = x[i:i+BERT_MAX_ROWS]
             _x = self.preprocessor(_x)
             _x = self.encoder(_x)['pooled_output']
-            if not (x_tmp is None):
-                x_tmp = np.concatenate((x_tmp, _x))
-            else:
-                x_tmp = _x
-        x = x_tmp
+            x_tmp.append(_x)
+        x = np.concatenate(x_tmp)
         print(f'Bert applied: {len(x)} instances.')
         return x, y
 

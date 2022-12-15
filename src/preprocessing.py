@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from const import mbti_typ2idx, mbti_typ2idx
+from .const import mbti_typ2idx, mbti_typ2idx
 
 def one_hot_encode(v : int, dim : int):
     a = np.zeros(shape=(dim), dtype=np.int32)
