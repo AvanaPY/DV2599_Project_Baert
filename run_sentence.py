@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import datetime
 import argparse
+from model import get_encoder, get_preprocessing_modle
 
 from const import mbti_idx2typ, mbti_typ2idx, mbti_p_typs
 if __name__ == '__main__':
@@ -33,6 +34,7 @@ if __name__ == '__main__':
     baert_path = os.path.join('models', args.model)
     if not os.path.exists(baert_path):
         raise RuntimeError(f'Model \"{baert_path}\" does not exist.')
+    
     baert = load_model(baert_path)
 
     data = [ args.sentence ] 

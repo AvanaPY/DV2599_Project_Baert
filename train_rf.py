@@ -8,7 +8,7 @@ from const import mbti_idx2typ
 
 import tensorflow as tf
 from data import read_data, get_datasets
-from model import get_modle, train_model, load_model, save_model, compile_model
+from model import get_modle_random_forest, train_model, load_model, save_model, compile_model
 
 import argparse
 
@@ -20,7 +20,7 @@ if gpus:
     try:
         tf.config.set_logical_device_configuration(
             gpus[0],
-            [tf.config.LogicalDeviceConfiguration(memory_limit=2**12)])
+            [tf.config.LogicalDeviceConfiguration(memory_limit=2**13)])
 
         logical_gpus = tf.config.list_logical_devices('GPU')
         print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPU")
@@ -44,11 +44,11 @@ def restricted_float(x, min_val:float=0.0, max_val:float=1.0):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         prog="train.py",
-        description="Trains a Baert NN model"
-    )
-    parser.add_argument('--epochs', default=10, 
-                                            type=int, 
-                                            help="How many epochs to run.")
+        description="Trains a Baert NN model")
+
+    parser.add_argument('--ntrees',      default=300,
+                                            type=int,
+                                            help="How many trees to initialise the RandomForest with.")
     parser.add_argument('--nrows',      default=2**10,
                                             type=int,
                                             help="How many rows from the data set to load in to train on.")
@@ -56,18 +56,10 @@ if __name__ == '__main__':
                                             type=restricted_float,
                                             help="How large the validation split of data shall be.",
                                             dest='val_split')
-    parser.add_argument('--batch-size', default=8,
+    parser.add_argument('--batch-size', default=128,
                                             type=int,
                                             help="How big batches to train on.",
                                             dest='batch_size')
-    parser.add_argument('--init-lr',    default=3e-5,
-                                            type=restricted_float,
-                                            help='Initial learning rate',
-                                            dest='init_lr')
-    parser.add_argument('--warmup-steps', default=0.1,
-                                            type=restricted_float,
-                                            help="Fraction of epochs to use as warmup steps for learning rate.",
-                                            dest='warmup_frac')
     parser.add_argument('--name',       default=None,
                                             type=str,
                                             help='The name which to give the model')
@@ -78,55 +70,47 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     with tf.device('/gpu:0'):
-        # Load the data
         # Create a model
-        baert : tf.keras.Model = None
-        baert, p_modle, modle = get_modle()
+        baert_rf : tf.keras.Model = None
+        baert_rf, p_modle, modle = get_modle_random_forest(num_trees=args.ntrees)
 
-        train_ds, val_ds = get_datasets("data/mbti_full_pull.csv",
-                                        "data/mbti_filtered.csv",
-                                        baert,
-                                        batch_size=args.batch_size,
-                                        shuffle_b_size=2**10,
-                                        nrows=args.nrows,
-                                        validation_split=args.val_split)
-        
+        baert_rf.compile(
+            metrics=['accuracy']
+        )
+
+        # Load the data
+        train_ds, val_ds = get_datasets( "data/mbti_full_pull.csv",
+                                            "data/mbti_filtered.csv",
+                                            baert_rf,
+                                            nrows=args.nrows,
+                                            shuffle_b_size=None,
+                                            batch_size=args.batch_size,
+                                            validation_split=args.val_split)
 
         # Compile the model against the hyper paramters
-        epochs  = args.epochs
-        init_lr = args.init_lr
-        warmup_frac = args.warmup_frac
-
-        steps_per_epoch = tf.data.experimental.cardinality(train_ds).numpy()
-        num_train_steps = steps_per_epoch * epochs
-        num_warmup_steps = int(warmup_frac*num_train_steps)
-
-        compile_model(baert, init_lr, num_train_steps, num_warmup_steps)
 
         if args.name:
             m_name = args.name
         else:
-            m_name = "baert" 
+            m_name = "baert_rf" 
             
         if args.add_timestamp:
             m_name += '_' + datetime.datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
 
         # Train the model
-        train_model(train_ds, val_ds, baert, epochs=epochs, m_name=m_name)
+        train_model(train_ds, val_ds, baert_rf, epochs=1, m_name=m_name)
 
         # Save the model to a file
         model_path = os.path.join("models", m_name)
-        save_model(baert, model_path)
-
-        print(f'Saving to \"{model_path}\"')
+        save_model(baert_rf, model_path)
 
         print(f'Performance training data set:')
-        evaluated = baert.evaluate(train_ds)
+        evaluated = baert_rf.evaluate(train_ds)
         print(f'\tLoss:     {evaluated[0]:.3f}')
         print(f'\tAccuracy: {evaluated[1]:.3f}')
         
         print(f'Performance validation data set:')
-        evaluated = baert.evaluate(val_ds)
+        evaluated = baert_rf.evaluate(val_ds)
         print(f'\tLoss:     {evaluated[0]:.3f}')
         print(f'\tAccuracy: {evaluated[1]:.3f}')
 

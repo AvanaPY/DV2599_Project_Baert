@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import csv
 import tensorflow as tf
+from model import BaertModel
 
 from const import mbti_p_typs, MBTI_CLASSES
 from preprocessing import mbti_to_int
@@ -34,7 +35,8 @@ def create_filtered_dataset(fp : str, filtered_fp : str, nrows:int):
     for t in mbti_p_typs:
         _f = df["author_flair_text"].str.contains(t)
         _filter |= _f
-    df = df[_filter].set_index(keys=np.arange(len(df[_filter].index)))
+
+    df = df[_filter].reset_index(drop=True)
 
     df["subreddit"] = df["subreddit"].str.upper()
 
@@ -82,6 +84,7 @@ def read_data(fp : str, filtered_fp : str, nrows=None,limit_row_count:bool=True)
 
 def get_datasets(data_file : str,
                  filtered_file : str,
+                 model : BaertModel,
                  batch_size:int=32, 
                  shuffle_b_size:int=1024,
                  prefetch_size:int=tf.data.AUTOTUNE,
@@ -100,9 +103,13 @@ def get_datasets(data_file : str,
     y = np.array(df["author_flair_text_i"].to_numpy())
     y = list(y)
 
+    # Let the model preprocess the raw data
+    x, y = model.preprocess_data(x, y)
+
     # Create a tensorflow DataSet
     ds = tf.data.Dataset.from_tensor_slices((x, y))
-    ds = ds.shuffle(buffer_size=shuffle_b_size)
+    if not (shuffle_b_size is None):
+        ds = ds.shuffle(buffer_size=shuffle_b_size)
     ds_count = tf.data.experimental.cardinality(ds).numpy()
 
     # Split it into Training data and Validation data
