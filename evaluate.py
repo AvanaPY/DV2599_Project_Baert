@@ -13,8 +13,8 @@ print(f'Running Tensorflow version {tf.__version__}')
 if __name__ == '__main__':
     baert = load_model(os.path.join('models', 'beart_2022_12_13__17_39_47'))
 
-    train_ds, _ = get_datasets("mbti_full_pull.csv",
-                                "mbti_filtered.csv",
+    train_ds, _ = get_datasets( "data/mbti_full_pull.csv",
+                                "data/mbti_filtered.csv",
                                 batch_size=32,
                                 shuffle_b_size=2**10,
                                 nrows=2**12,

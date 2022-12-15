@@ -9,7 +9,7 @@ import argparse
 from const import mbti_idx2typ, mbti_typ2idx, mbti_p_typs
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-                prog = 'BSR',
+                prog = 'run_sentence.py',
                 description = 'Tests cool shit',
                 epilog = 'This program uses a version of Baert and runs it against a sentence in order to predict the MBTI type of the person who wrote the sentence. It probably sucks.')
 

@@ -1,6 +1,7 @@
 import tensorflow as tf
 import tensorflow_hub as hub
 import tensorflow_text as text
+import tensorflow_decision_forests as tfdf
 from official.nlp import optimization
 from const import MBTI_CLASSES
 import datetime
@@ -30,6 +31,12 @@ def get_modle(output_size:int=MBTI_CLASSES):
     net = tf.keras.layers.Dense(output_size, activation='softmax', name="output")(net)
     baert : tf.keras.Model = tf.keras.Model(inp, net, name="Baert")
     return baert, preprocessor, encoder
+
+def get_modle_random_forest(output_size:int=MBTI_CLASSES):
+    preprocessor = get_preprocessing_modle()
+    encoder = get_encoder()
+    randomforestbaert = tfdf.keras.RandomForestModel()
+    return randomforestbaert, preprocessor, encoder
 
 def get_encoder():
     global _MODEL
